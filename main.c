@@ -1,255 +1,244 @@
-/*
-  * main.c
- *
- *  Created on: Oct 12, 2023
- *      Author: hp
- */
-
-#include "STD_TYPES.h"
-#include "BIT_MATH.h"
-#include "DIO_interface.h"
+#include  "BIT_MATH.h"
+#include  "STD_TYPES.h"
 #include <util/delay.h>
-#include "CALC_interface.h"
+#include  "DIO_interface.h"
+#include  "GIE_interface.h"
+#include  "TIMER0_interface.h"
+#include "Timer2_interface.h"
 #include "CLCD_interface.h"
-#include  "KPD_interface.h"
 
-u16 calc_add(u8 a[],u8 b[],u8 n,u8 m);
-u16 calc_sub(u8 a[],u8 b[],u8 n,u8 m);
-u16 calc_MUL(u8 a[],u8 b[],u8 n,u8 m);
-u16 calc_DIV(u8 a[],u8 b[],u8 n,u8 m);
-u8 Check (u8 Password[],u8 CheckPassword[],u8 NumberOfDigit);
-  u8 KeyPad_Value=0;
-  u8 NumberOFDigits=0;
-  u8 FirstNum[4]	;
-  u8 SecondNum[4] ;
-  u8 Password[16] ;   //16 because CLCD max 2*16
-  u8 CheckPassword[16];
-  u8 Counter=0;
-  u8 Checker;
-  u8 Operation;
+void led (void);
+void seg (void);
+u8 car[8]={
+		 0x00,
+		  0x00,
+		  0x1F,
+		  0x15,
+		  0x1F,
+		  0x11,
+		  0x11,
+		  0x00
+};
+u8 stop[8]=
+{
+		  0x00,
+		  0x04,
+		  0x1F,
+		  0x0E,
+		  0x04,
+		  0x0E,
+		  0x15,
+		  0x00
+};
+u8 people[8]=
+{
+		  0x0E,
+		  0x0E,
+		  0x04,
+		  0x0E,
+		  0x15,
+		  0x04,
+		  0x0A,
+		  0x0A
+
+};
+
+u8 SSD_arr [10]=
+{
+		0b11101111,     /*9*/
+		0b11111111,     /*8*/
+		0b11000111,     /*7*/
+		0b11111101,     /*6*/
+		0b11101101,     /*5*/
+		0b11100110,     /*4*/
+		0b11001111,     /*3*/
+		0b11011011,     /*2*/
+		0b10000110,     /*1*/
+		0b10111111      /*0*/
+};
+
 void main (void)
 {
-	//CLCD
-	DIO_voidSetPortDir(PORTA_REG,PORT_DIR_OUT);
-	DIO_voidSetPortDir(PORTC_REG,PORT_DIR_OUT);
-	//KPD
-	   DIO_voidSetPortDir(PORTB_REG,0b00001111);
-		DIO_voidSetPortVal(PORTB_REG,PORT_VAL_HIGH);
-		CLCD_voidInit();
-		CLCD_voidSendString("SET PASSWORD");
-		// SET PASSWORD
-		while (1)
-		{
-	  do
-	  {
-        KeyPad_Value=KPD_u8GetPressedKey();
-	  }while(KeyPad_Value =='\0');     //NULL
-	  NumberOFDigits++;
-	  if (KeyPad_Value =='&')
-		 break;
-	   CLCD_voidSendPos(1,NumberOFDigits-1);
-	   CLCD_voidSendNum(KeyPad_Value);
-	   _delay_ms(200);
-	   CLCD_voidSendPos(1,NumberOFDigits-1);
-       CLCD_voidSendData('*');
-       Password[NumberOFDigits]=KeyPad_Value;
-		}
+//LED
+	DIO_voidSetPinDir(PORTB_REG,PIN0,PIN_DIR_OUT);
+	DIO_voidSetPinDir(PORTB_REG,PIN1,PIN_DIR_OUT);
+	DIO_voidSetPinDir(PORTB_REG,PIN2,PIN_DIR_OUT);
+	 //TIMER0
+	    TIMER0_voidSetOCRValue(125);
+	    TIMER0_voidInit();
+	    //TIMER2
+	    TIMER2_voidSetOCRValue(125);
+	    TIMER2_voidInit();
 
-/*********************************************************/
+    //CLCD
+    DIO_voidSetPortDir(PORTA_REG,PORT_DIR_OUT);
+    DIO_voidSetPortDir(PORTC_REG,PORT_DIR_OUT);
+    CLCD_voidInit();
+    //SSD
+        DIO_voidSetPortDir(PORTD_REG,PORT_DIR_OUT);
+        DIO_voidSetPortVal(PORTD_REG,PORT_VAL_HIGH);
+    TIMER0_u8SetCallBack(led);
+    TIMER2_u8SetCallBack(seg);
+    GIE_VoidEnable();
 
-		//CHECK PASSWORD
-		while (1)
-	{
-
-			CLCD_voidSendCommand(Clear);
-			_delay_ms(100);
-			CLCD_voidSendString("CHECK PASSWORD");
-			 Counter =0;
-			u8 KeyPad_Value='\0';
-			while(KeyPad_Value !='&')
-			{
-		         do
-			  {
-		        KeyPad_Value=KPD_u8GetPressedKey();
-			  }while(KeyPad_Value =='\0');     //NULL
-		            Counter++;
-			  if (KeyPad_Value =='&')
-				 break;
-			   CLCD_voidSendPos(1,Counter-1);
-			   CLCD_voidSendNum(KeyPad_Value);
-			   _delay_ms(200);
-			   CLCD_voidSendPos(1,Counter-1);
-		       CLCD_voidSendData('*');
-		    CheckPassword[Counter]=KeyPad_Value;
-			}
-
-   /*********************************************/
-			Checker= Check(CheckPassword,Password,Counter);
-			if(Checker==NumberOFDigits-1)
-			{
-				CLCD_voidSendCommand(Clear);
-				CLCD_voidSendPos(0,1);
-				CLCD_voidSendString("LOADING");
-				for(u8 i=0;i<5;i++)   // FOR LOOP BELONGS TO DOTS
-				{
-					CLCD_voidSendPos(1,i);
-					CLCD_voidSendData('.');
-					_delay_ms(500);
-				}
-				_delay_ms(200);
-				CLCD_voidSendCommand(Clear);
-				CLCD_voidSendPos(0,1);
-				CLCD_voidSendString("CALCULATOR");
-				CLCD_voidSendPos(1,0);
-				CLCD_voidSendString("IS READY");
-				_delay_ms(2000);
-				CLCD_voidSendCommand(Clear);
-
-             while(1)
-          {
-	    u8 Counter=0;
-	    u8 Operation=0;
-	    while(1)
-	    {
-	     do{
-	    	 KeyPad_Value=KPD_u8GetPressedKey();
-	    	 _delay_ms(200);
-	     }while(KeyPad_Value == '\0');
-	     if (KeyPad_Value =='+' || KeyPad_Value =='-' || KeyPad_Value=='*' || KeyPad_Value=='/')
-	     {
-	    	 Operation=KeyPad_Value;
-	    	 CLCD_voidSendPos(0,Counter+1);
-	    	 CLCD_voidSendData(KeyPad_Value);
-	    	 break;
-	     }
-
-	     FirstNum[Counter]=KeyPad_Value;
-	     CLCD_voidSendPos(0,Counter);
-	     CLCD_voidSendNum(KeyPad_Value);
-          }
-    u8 Counter2=Counter+1;
-    u8 Counter3=0;
-    while(1)
+    while (1)
     {
-    	do
-    	{
-    		KeyPad_Value=KPD_u8GetPressedKey();
-    		_delay_ms(200);
-    	}while(KeyPad_Value =='\0');
-    	if (KeyPad_Value =='=')
-    	{
-    		CLCD_voidSendPos(0,Counter2+1);
-    		CLCD_voidSendData(KeyPad_Value);
-    		break;
-    	}
-    	SecondNum[Counter3]=KeyPad_Value;
-    	Counter2++;
-    	Counter3++;
-    	CLCD_voidSendPos(0,Counter2);
-    	CLCD_voidSendNum(KeyPad_Value);
+
     }
-  switch(Operation)
-  {
-     case '+':
-    	 CLCD_voidSendPos(0,Counter2+2);
-    	 CLCD_voidSendNum(calc_add(FirstNum,SecondNum,Counter,Counter3));
-    	 break;
-     case '-':
-    	 CLCD_voidSendPos(0,Counter2+2);
-    	 CLCD_voidSendNum(calc_sub(FirstNum,SecondNum,Counter,Counter3));
-    	 break;
-     case '*':
-    	 CLCD_voidSendPos(0,Counter2+2);
-    	 CLCD_voidSendNum(calc_MUL(FirstNum,SecondNum,Counter,Counter3));
-    	 break;
-     case '/':
-    	 CLCD_voidSendPos(0,Counter2+2);
-    	 CLCD_voidSendNum(calc_DIV(FirstNum,SecondNum,Counter,Counter3));
-    	 break;
-			}
-			_delay_ms(3000);
-			CLCD_voidSendCommand(Clear);
-	    }
 
-			}
-		else
-		  {
-            CLCD_voidSendCommand(Clear);
-            CLCD_voidSendString(" WRONG PASSWORD");
-           _delay_ms(2000);
-		   }
-
-	}
 }
+void led (void)
+{
+	static u32 Local_u16counter=0;
+	Local_u16counter++;
 
-u8 Check (u8 Password[],u8 CheckPassword[],u8 NumberOfDigit)
+	if (Local_u16counter == 300)
+	{
+		CLCD_voidSendCommand(Clear);
+		CLCD_voidSendString(" Car Can Go");
+		CLCD_voidWriteSpecialCharacter(car,0,1,10);
+		for (u8 i=0 ; i<8 ; i++)
 		{
-	          u8 Checker=0;
-		for(u8 i=0; i<NumberOFDigits-1;i++)
-		{
-			if(Password[NumberOfDigit]==CheckPassword[Counter])
-			{
-				Checker++;
-			}
+			CLCD_voidSendData(car[i]);
 		}
-	return Checker;
-        }
-u16 calc_add(u8 a[],u8 b[],u8 n,u8 m)
-{
-	u16 Num1=a[0];
-	u16 Num2=b[0];
-	for(u8 Counter=1;Counter<n;Counter++)
-	{
-		Num1=Num1*10+a[Counter];
-	}
-	for(u8 Counter=1;Counter<m;Counter++)
-	{
-		Num2=Num2*10+b[Counter];
-	}
-	return (Num1+Num2);
-}
-u16 calc_sub(u8 a[],u8 b[],u8 n,u8 m)
-{
-	u16 Num1=a[0];
-	u16 Num2=b[0];
-	for(u8 i=1;i<n;i++)
-	{
-		Num1=Num1*10+a[i];
-	}
-	for(u8 j=1;j<m;j++)
-	{
-		Num2=Num2*10+b[j];
-	}
-	return (Num1-Num2);
-}
 
-u16 calc_MUL(u8 a[],u8 b[],u8 n,u8 m)
-{
-	u16 Num1=a[0];
-	u16 Num2=b[0];
-	for(u8 Counter=1;Counter<n;Counter++)
-	{
-		Num1=Num1*10+a[Counter];
+		DIO_voidSetPinVal(PORTB_REG,PIN0,PIN_VAL_HIGH);
+		DIO_voidSetPinVal(PORTB_REG,PIN1,PIN_VAL_LOW);
+		DIO_voidSetPinVal(PORTB_REG,PIN2,PIN_VAL_LOW);
 	}
-	for(u8 Counter=1;Counter<m;Counter++)
-	{
-		Num2=Num2*10+b[Counter];
-	}
-	return (Num1*Num2);
-}
-u16 calc_DIV(u8 a[],u8 b[],u8 n,u8 m)
-{
-	u16 Num1=a[0];
-	u16 Num2=b[0];
-	for(u8 Counter=1;Counter<n;Counter++)
-	{
-		Num1=Num1*10+a[Counter];
-	}
-	for(u8 Counter=1;Counter<m;Counter++)
-	{
-		Num2=Num2*10+b[Counter];
-	}
-	return (Num1/Num2);
-}
 
+	else if (Local_u16counter == 5300)
+		{
+			CLCD_voidSendCommand(Clear);
+			CLCD_voidSendString("    ALL Stop");
+			CLCD_voidWriteSpecialCharacter(stop,0,1,10);
+			for (u8 j=0 ; j<8 ; j++)
+			{
+				CLCD_voidSendData(stop[j]);
+			}
 
+			DIO_voidSetPinVal(PORTB_REG,PIN0,PIN_VAL_LOW);
+			DIO_voidSetPinVal(PORTB_REG,PIN1,PIN_VAL_HIGH);
+			DIO_voidSetPinVal(PORTB_REG,PIN2,PIN_VAL_LOW);
+		}
+	else if (Local_u16counter == 7800)
+		{
+			CLCD_voidSendCommand(Clear);
+			CLCD_voidSendString(" People Can GO");
+			CLCD_voidWriteSpecialCharacter(people,0,1,10);
+			for (u8 k=0 ; k<8 ; k++)
+			{
+				CLCD_voidSendData(people[k]);
+			}
+			DIO_voidSetPinVal(PORTB_REG,PIN0,PIN_VAL_LOW);
+			DIO_voidSetPinVal(PORTB_REG,PIN1,PIN_VAL_LOW);
+			DIO_voidSetPinVal(PORTB_REG,PIN2,PIN_VAL_HIGH);
+
+		}
+}
+void seg (void)
+{
+	static u32 Local_u16counter2=0;
+	Local_u16counter2++;
+	if(Local_u16counter2==1000)
+	{
+		DIO_voidSetPortDir(PORTD_REG,SSD_arr[0]);
+	}
+	else if(Local_u16counter2==2000)
+		{
+			DIO_voidSetPortDir(PORTD_REG,SSD_arr[1]);
+		}
+	else if(Local_u16counter2==3000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[2]);
+			}
+
+	else if(Local_u16counter2==4000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[3]);
+			}
+	else if(Local_u16counter2==5000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[4]);
+			}
+	else if(Local_u16counter2==6000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[5]);
+			}
+	else if(Local_u16counter2==7000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[6]);
+			}
+	else if(Local_u16counter2==8000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[7]);
+			}
+	else if(Local_u16counter2==9000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[8]);
+			}
+	else if(Local_u16counter2==10000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[9]);
+			}
+	else if(Local_u16counter2==12000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[6]);
+			}
+	else if(Local_u16counter2==13000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[7]);
+			}
+	else if(Local_u16counter2==14000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[8]);
+			}
+	else if(Local_u16counter2==15000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[9]);
+			}
+	else if(Local_u16counter2==16000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[0]);
+			}
+	else if(Local_u16counter2==17000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[1]);
+			}
+	else if(Local_u16counter2==18000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[2]);
+			}
+	else if(Local_u16counter2==19000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[3]);
+			}
+	else if(Local_u16counter2==20000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[4]);
+			}
+	else if(Local_u16counter2==21000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[5]);
+			}
+	else if(Local_u16counter2==22000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[6]);
+			}
+	else if(Local_u16counter2==23000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[7]);
+			}
+	else if(Local_u16counter2==24000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[8]);
+			}
+	else if(Local_u16counter2==25000)
+			{
+				DIO_voidSetPortDir(PORTD_REG,SSD_arr[9]);
+			}
+	else if(Local_u16counter2==26000)
+			{
+		Local_u16counter2=0;
+			}
+}

@@ -8,12 +8,12 @@
 
 void CLCD_voidSendData(u8 Copy_u8Data)
 {
-	//RS -> 1 SEND DATA
+	//RS -> 0 SEND COMMAND
 	DIO_voidSetPinVal(CTRL_PORT,RS,PIN_VAL_HIGH);
-	//RW -> 0 SEND DATA
+	//RW -> 0 SEND COMMAND
 	DIO_voidSetPinVal(CTRL_PORT,RW,PIN_VAL_LOW);
 	//SET COMMAND TO DATA PORT
-	DIO_voidSetPortVal(DATA_PORT,Copy_u8Data);  // DATA
+	DIO_voidSetPortVal(DATA_PORT,Copy_u8Data);
 	DIO_voidSetPinVal(CTRL_PORT,E,PIN_VAL_HIGH);
 	_delay_ms(1);
 	DIO_voidSetPinVal(CTRL_PORT,E,PIN_VAL_LOW);
@@ -28,12 +28,12 @@ void CLCD_voidSendCommand(u8 Copy_u8Command)
 	//SET COMMAND TO DATA PORT
 	DIO_voidSetPortVal(DATA_PORT,Copy_u8Command);
 
-	DIO_voidSetPinVal(CTRL_PORT,E,PIN_VAL_HIGH);  //FALLING EDGE
+	DIO_voidSetPinVal(CTRL_PORT,E,PIN_VAL_HIGH);
 	_delay_ms(1);
 	DIO_voidSetPinVal(CTRL_PORT,E,PIN_VAL_LOW);
 }
 
-void CLCD_voidInit(void)    //CLCD ON 8 BITS
+void CLCD_voidInit(void)
 {
 	_delay_ms(40);
 	CLCD_voidSendCommand(0b00111000);
@@ -47,7 +47,7 @@ void CLCD_voidSendString(char* Copy_PvString)
 {
 
 	u8 i=0;
-	while(Copy_PvString[i]!='\0') // Copy_PvString[i]!=NULL
+	while(Copy_PvString[i]!='\0')
 	{
 		CLCD_voidSendData(Copy_PvString[i]);
 		i++;
@@ -80,14 +80,14 @@ void CLCD_voidSendPos(u8 Copy_u8X,u8 Copy_u8Y)
 {
 
 	u8 Local_u8Pos;
-	if(Copy_u8X==0)   //first row
+	if(Copy_u8X==0)
 	{
 		Local_u8Pos=Copy_u8Y;
 	}
 	else if (Copy_u8X==1)
 
 	{
-		Local_u8Pos=Copy_u8Y+0x40; //second row
+		Local_u8Pos=Copy_u8Y+0x40;
 	}
 	CLCD_voidSendCommand(Local_u8Pos+128);
 }
@@ -95,8 +95,8 @@ void CLCD_voidWriteSpecialCharacter(u8 *Copy_Pattern,u8 Copy_u8Loc,u8 Copy_u8X,u
 
 	u8 Local_u8CGRAMAdress,Local_u8Iterator=0;
 
-	Local_u8CGRAMAdress=Copy_u8Loc*8; // address  8 indicate no of LOC IN CGRAM
-	CLCD_voidSendCommand(Local_u8CGRAMAdress+64);  //data in CGRAM ->ACESS AC
+	Local_u8CGRAMAdress=Copy_u8Loc*8; // address
+	CLCD_voidSendCommand(Local_u8CGRAMAdress+64);  //data in CGRAM
    for(Local_u8Iterator=0;Local_u8Iterator<8;Local_u8Iterator++) //STORE in CGRAM
    {
 	   CLCD_voidSendData(Copy_Pattern[Local_u8Iterator]);

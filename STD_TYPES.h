@@ -12,4 +12,8 @@ typedef signed long  int s32;
 typedef float  f32;
 typedef double f64;
 
+
+#define NULL  (void*)0
+#define OK    0
+#define NOK  1
 #endif

@@ -25,9 +25,17 @@
 #define DATA_PORT     PORTA_REG
 
 #define CTRL_PORT     PORTC_REG
+
 #define RS     PIN0
 #define RW     PIN1
 #define E      PIN2
+
+
+
+
+
+
+
 
 
 
